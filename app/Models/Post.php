@@ -13,6 +13,11 @@ class Post extends Model
         'body'
     ];
 
+    public  function likedBy(User $user)
+    {
+        return $this->likes->contains('user_id', $user->id);  //Laravel collection method and we check if user has already liked a post
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
