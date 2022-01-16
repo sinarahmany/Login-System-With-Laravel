@@ -3,37 +3,47 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
-use App\Mail\PostLiked;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 
-class PostLikeController extends Controller
+class PostController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth']);
+        $this->middleware(['auth'])->only(['store', 'destroy']);// it allows guest to see posts but not add or delete
     }
 
-    public function store(Post $post, Request $request)
+    public function index()
     {
-        if ($post->likedBy($request->user())) {
-            return response(null, 409);
-        }
+        $posts = Post::latest()->with(['user', 'likes'])->paginate(20);
 
-        $post->likes()->create([
-            'user_id' => $request->user()->id,
+        return view('posts.index', [
+            'posts' => $posts
+        ]);
+    }
+
+    public function show(Post $post)
+    {
+        return view('posts.show', [
+            'post' => $post
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $this->validate($request, [
+            'body' => 'required'
         ]);
 
-        if (!$post->likes()->onlyTrashed()->where('user_id', $request->user()->id)->count()) {
-            Mail::to($post->user)->send(new PostLiked(auth()->user(), $post));
-        }
+        $request->user()->posts()->create($request->only('body'));
 
         return back();
     }
 
-    public function destroy(Post $post, Request $request)
+    public function destroy(Post $post)
     {
-        $request->user()->likes()->where('post_id', $post->id)->delete();
+        $this->authorize('delete', $post);
+
+        $post->delete();
 
         return back();
     }
